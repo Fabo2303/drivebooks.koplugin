@@ -44,9 +44,9 @@ Before using the plugin, configure a Google Drive API key:
 
 Important: the folder and files must be readable by anyone with the link. A Google API key does not grant access to private files.
 
-## Default folder
+## Shared folder setup
 
-The plugin includes a default shared folder ID, so it can be used immediately for a public folder setup. You may update this value to another shared Drive folder if needed.
+You must configure the shared folder ID manually. The plugin no longer relies on a built-in default folder ID.
 
 ## Downloads
 

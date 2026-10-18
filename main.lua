@@ -7,24 +7,25 @@ local lfs = require("libs/libkoreader-lfs")
 
 local Settings = require("settings")
 local Drive = require("drive")
+local Config = require("config")
 
 local Plugin = WidgetContainer:extend{
     name = "drivebooks",
 }
 
 local FOLDER_MIME = "application/vnd.google-apps.folder"
-local DEFAULT_FOLDER_ID = "1R0b6EwM6dOs2wdXanW6VqeywBqooCFDU"
 local DOWNLOAD_DIR = "/mnt/us/koreader/DriveBooks"
 
 function Plugin:init()
     self.settings = Settings:new()
+    self:reloadConfig(false)
     self.ui.menu:registerToMainMenu(self)
 end
 
 function Plugin:getDrive()
     return Drive:new(
-        self.settings:get("api_key", ""),
-        self.settings:get("folder_id", DEFAULT_FOLDER_ID)
+        self:getConfigValue("api_key", ""),
+        self:getConfigValue("folder_id", "")
     )
 end
 
@@ -44,6 +45,43 @@ function Plugin:closeMenu()
         self.active_menu = nil
         pcall(function() UIManager:close(dialog) end)
     end
+end
+
+function Plugin:reloadConfig(show_message)
+    package.loaded["config"] = nil
+
+    local ok, config = pcall(require, "config")
+
+    if not ok or type(config) ~= "table" then
+        if show_message then
+            self:message("Error al leer config.lua:\n" .. tostring(config))
+        end
+        return false
+    end
+
+    self.config = config
+
+    if show_message then
+        self:message("Configuración recargada correctamente.")
+    end
+
+    return true
+end
+
+function Plugin:getConfigValue(key, fallback)
+    local saved = self.settings:get(key, "")
+
+    if saved ~= nil and saved ~= "" then
+        return saved
+    end
+
+    local configured = self.config and self.config[key]
+
+    if configured ~= nil and configured ~= "" then
+        return configured
+    end
+
+    return fallback
 end
 
 -- Keep only one plugin menu/dialog active. Wrap callbacks so the current menu
@@ -144,7 +182,7 @@ end
 function Plugin:configureSharedFolder()
     self:askText(
         "Shared folder ID",
-        self.settings:get("folder_id", DEFAULT_FOLDER_ID),
+        self:getConfigValue("folder_id", ""),
         "Folder ID, not the full URL",
         function(value)
             value = value:match("^%s*(.-)%s*$")
@@ -183,12 +221,13 @@ function Plugin:configureDownloadDirectory()
 end
 
 function Plugin:showHome()
+    local current_folder_id = self:getConfigValue("folder_id", "")
     local buttons = {
         {
             {
                 text = "Browse Drive books",
                 callback = function()
-                    self:showFolder(self.settings:get("folder_id", DEFAULT_FOLDER_ID), "My folder")
+                    self:showFolder(current_folder_id, "My folder")
                 end,
             },
         },
@@ -224,6 +263,14 @@ function Plugin:showHome()
                 end,
             },
         },
+        {
+            {
+                text = "↻ Refrescar configuración",
+                callback = function()
+                    self:reloadConfig(true)
+                end,
+            },
+        },
     }
 
     self:showMenu("Drive Books", buttons)
@@ -244,6 +291,11 @@ function Plugin:testConnection()
 end
 
 function Plugin:showFolder(folder_id, folder_name)
+    if not folder_id or folder_id == "" then
+        self:message("Please configure the shared folder ID first.")
+        return
+    end
+
     local drive = self:getDrive()
     if not drive:isConfigured() then
         self:message("Please configure your API key first.")
@@ -266,15 +318,13 @@ function Plugin:showFolder(folder_id, folder_name)
         },
     }
 
-    if folder_id ~= self.settings:get("folder_id", DEFAULT_FOLDER_ID) then
+    local main_folder_id = self:getConfigValue("folder_id", "")
+    if folder_id ~= main_folder_id then
         buttons[#buttons + 1] = {
             {
                 text = "← Back to main folder",
                 callback = function()
-                    self:showFolder(
-                        self.settings:get("folder_id", DEFAULT_FOLDER_ID),
-                        "My folder"
-                    )
+                    self:showFolder(main_folder_id, "My folder")
                 end,
             },
         }
