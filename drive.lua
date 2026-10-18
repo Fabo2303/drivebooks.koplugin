@@ -57,19 +57,19 @@ local function http_json(url, extra_headers)
     }
 
     if not ok then
-        return nil, "No se pudo conectar por HTTPS: " .. tostring(code)
+        return nil, "Could not connect over HTTPS: " .. tostring(code)
     end
     if tonumber(code) ~= 200 then
         local body = table.concat(chunks)
         local detail = body:sub(1, 400)
-        return nil, "Google Drive respondió HTTP " .. tostring(code)
+        return nil, "Google Drive responded with HTTP " .. tostring(code)
             .. (status and (" (" .. tostring(status) .. ")") or "")
             .. (detail ~= "" and ("\n" .. detail) or "")
     end
 
     local decoded, result = pcall(json.decode, table.concat(chunks))
     if not decoded or type(result) ~= "table" then
-        return nil, "La respuesta de Google no es JSON válido."
+        return nil, "The Google response was not valid JSON."
     end
     return result
 end
@@ -87,7 +87,7 @@ end
 
 function Drive:list(folder_id)
     if not self:isConfigured() then
-        return nil, "Configura la API Key y el ID de carpeta."
+        return nil, "Set up the API key and folder ID first."
     end
 
     folder_id = folder_id or self.root_folder_id
@@ -133,23 +133,23 @@ end
 
 function Drive:download(file, destination)
     if not self:isConfigured() then
-        return nil, "Configura primero la API Key y la carpeta."
+        return nil, "Configure the API key and folder first."
     end
     if type(file) ~= "table" or not file.id or not file.name then
-        return nil, "Datos del archivo no válidos."
+        return nil, "Invalid file data."
     end
     if file.mimeType == "application/vnd.google-apps.folder" then
-        return nil, "Selecciona un archivo, no una carpeta."
+        return nil, "Select a file, not a folder."
     end
     if file.mimeType and file.mimeType:match("^application/vnd%.google%-apps%.") then
-        return nil, "Este es un documento nativo de Google. La exportación de Docs/Sheets/Slides aún no está implementada."
+        return nil, "This is a native Google document. Exporting Docs, Sheets, or Slides is not implemented yet."
     end
 
     local ok_dir = lfs.attributes(destination, "mode") == "directory"
     if not ok_dir then
         local made = lfs.mkdir(destination)
         if not made and lfs.attributes(destination, "mode") ~= "directory" then
-            return nil, "No se pudo crear la carpeta: " .. destination
+            return nil, "Could not create the folder: " .. destination
         end
     end
 
@@ -170,7 +170,7 @@ function Drive:download(file, destination)
 
     local out, open_err = io.open(path, "wb")
     if not out then
-        return nil, "No se pudo crear el archivo: " .. tostring(open_err)
+        return nil, "Could not create the file: " .. tostring(open_err)
     end
 
     local received = 0
@@ -178,7 +178,7 @@ function Drive:download(file, destination)
         if chunk then
             received = received + #chunk
             if received > MAX_DOWNLOAD_BYTES then
-                return nil, "El archivo supera el límite de 250 MiB."
+                return nil, "The file exceeds the 250 MiB limit."
             end
             return out:write(chunk)
         end
@@ -203,12 +203,12 @@ function Drive:download(file, destination)
 
     if not ok or tonumber(code) ~= 200 then
         os.remove(path)
-        return nil, "Descarga fallida (HTTP " .. tostring(code or status or "sin respuesta") .. ")."
+        return nil, "Download failed (HTTP " .. tostring(code or status or "no response") .. ")."
     end
 
     if received == 0 then
         os.remove(path)
-        return nil, "Google devolvió un archivo vacío."
+        return nil, "Google returned an empty file."
     end
 
     return path

@@ -27,7 +27,7 @@ Copy the `drivebooks.koplugin` folder into:
 
 `/mnt/us/koreader/plugins/drivebooks.koplugin/`
 
-Then restart KOReader and open the main menu. You should see a menu entry named `Drive Books`.
+Then restart KOReader and open the main menu. You should see a menu entry named `Drive Books` in `Tools`.
 
 ## Configuration
 
